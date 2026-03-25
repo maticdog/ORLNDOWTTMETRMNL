@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Ride Waits Display</title>
+
+<style>
+body {
+    margin: 0;
+    padding: 16px;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #ffffff;
+    color: #000000;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 10px;
+    font-size: 24px;
+}
+
+.updated {
+    text-align: center;
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+.park {
+    margin-bottom: 20px;
+}
+
+.park h2 {
+    font-size: 18px;
+    border-bottom: 2px solid #000;
+    margin-bottom: 6px;
+}
+
+.ride {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 14px;
+}
+
+.wait {
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Orlando Ride Waits</h1>
+<div class="updated" id="updated">Loading...</div>
+
+<div id="content"></div>
+
+<script>
+const PROXY = "https://api.allorigins.win/raw?url=";
+const BASE  = "https://queue-times.com/parks/";
+
+const PARKS = [
+    { id: 6, name: "Magic Kingdom" },
+    { id: 5, name: "EPCOT" },
+    { id: 7, name: "Hollywood Studios" },
+    { id: 8, name: "Animal Kingdom" },
+    { id: 65, name: "Universal Studios Florida" },
+    { id: 64, name: "Islands of Adventure" }
+];
+
+async function loadData() {
+    const container = document.getElementById("content");
+    container.innerHTML = "";
+
+    for (const park of PARKS) {
+        const section = document.createElement("div");
+        section.className = "park";
+
+        const title = document.createElement("h2");
+        title.textContent = park.name;
+        section.appendChild(title);
+
+        try {
+            const res = await fetch(
+                PROXY + encodeURIComponent(`${BASE}${park.id}/queue_times.json`)
+            );
+            const data = await res.json();
+
+            let rides = [];
+            data.lands?.forEach(l => {
+                if (l.rides) rides = rides.concat(l.rides);
+            });
+
+            // Only open rides
+            rides = rides.filter(r => r.is_open);
+
+            // Sort by shortest wait
+            rides.sort((a, b) => a.wait_time - b.wait_time);
+
+            rides.forEach(r => {
+                const row = document.createElement("div");
+                row.className = "ride";
+
+                const name = document.createElement("span");
+                name.textContent = r.name;
+
+                const wait = document.createElement("span");
+                wait.className = "wait";
+                wait.textContent = r.wait_time + " min";
+
+                row.appendChild(name);
+                row.appendChild(wait);
+                section.appendChild(row);
+            });
+
+        } catch (e) {
+            const error = document.createElement("div");
+            error.textContent = "Failed to load";
+            section.appendChild(error);
+        }
+
+        container.appendChild(section);
+    }
+
+    document.getElementById("updated").textContent =
+        "Updated: " + new Date().toLocaleTimeString();
+}
+
+loadData();
+setInterval(loadData, 5 * 60 * 1000);
+</script>
+
+</body>
+</html>
